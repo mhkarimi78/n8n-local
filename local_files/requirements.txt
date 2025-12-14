@@ -1,0 +1,6 @@
+# local_files/requirements.txt
+flask
+requests
+beautifulsoup4
+selenium==4.15.2
+googlesearch-python

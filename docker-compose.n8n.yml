@@ -1,0 +1,36 @@
+# docker-compose.n8n.yml (کپی-پیست دقیق)
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=semimystically-unespoused-juanita.ngrok-free.dev
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://semimystically-unespoused-juanita.ngrok-free.dev/
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=Mahsa16111387
+      - N8N_ENCRYPTION_KEY=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./local_files:/files
+      - ./outputs:/data          # ← این خط رو اضافه کن
+      - ./outputs:/data:rw
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - app-network
+
+volumes:
+  n8n_data:
+
+networks:
+  app-network:
+    external: true
+    name: n8n-local_app-network

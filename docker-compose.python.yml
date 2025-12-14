@@ -1,0 +1,20 @@
+# docker-compose.python.yml
+version: '3.8'
+
+services:
+  python-api:
+    build:
+      context: .
+      dockerfile: Dockerfile py
+    restart: always
+    volumes:
+      - ./local_files:/files
+    working_dir: /files
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

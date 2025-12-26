@@ -1,4 +1,4 @@
-<img width="1599" height="290" alt="Screenshot 2025-12-26 at 2 25 27 PM" src="https://github.com/user-attachments/assets/d8e1ac21-62be-4b75-9a49-8bcd3852e897" /># n8n Local AI Workflow – Automated ESG Data Scraping & Dataset Builder
+# n8n Local AI Workflow – Automated ESG Data Scraping & Dataset Builder
 
 [![n8n](https://img.shields.io/badge/n8n-v1.x-41A2E6?style=flat&logo=n8n&logoColor=white)](https://n8n.io)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)

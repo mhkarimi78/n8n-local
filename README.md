@@ -18,7 +18,8 @@ This project is a **fully automated data pipeline** built with **n8n** (self-hos
 
 The entire process runs **headlessly and unattended**, making it perfect for periodic data collection or integration into larger AI/ML pipelines.
 
-![Workflow Preview](./screenshot.png)
+![Workflow Preview](<img width="1599" height="290" alt="Screenshot 2025-12-26 at 2 25 27 PM" src="https://github.com/user-attachments/assets/3a0c292e-cfba-4fa4-81bd-3838216e88ee" />
+)
 <!-- Replace with your actual screenshot of the n8n workflow or output -->
 
 ## Key Features

@@ -7,7 +7,6 @@ sys.path.append("/files/scripts")
 
 # ایمپورت دو تا ماژول
 from lseg_scraper import get_esg_score
-from pdf_finder import find_sustainability_pdf
 
 app = Flask(__name__)
 
@@ -29,9 +28,6 @@ def scrape():
 
     company_name = lseg_result["company"]
 
-    # ۲. پیدا کردن PDF گزارش پایداری
-    pdf_url = find_sustainability_pdf(company_name)
-
     # ۳. خروجی نهایی (همه چیز با هم)
     result = {
         "company": company_name,
@@ -41,8 +37,6 @@ def scrape():
         "G": lseg_result.get("G", "N/A"),
         "year": lseg_result["year"],
         "found": True,
-        "pdf_url": pdf_url or None,
-        "pdf_found": bool(pdf_url)
     }
 
     return jsonify(result)

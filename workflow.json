@@ -1,245 +1,544 @@
 {
-  "name": "ESG Pipeline - Text Input via Telegram",
+  "name": "company detail",
   "nodes": [
     {
       "parameters": {
-        "authentication": "accessToken",
-        "token": "8554352368:AAH3HSlxx9ESvChNb0Rwe_Urcp46vzeq5r0",
-        "updates": ["message"]
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
       },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        -832
+      ],
+      "id": "0c1daca9-97a1-4ccf-a070-904e08290df8",
       "name": "Telegram Trigger",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [240, 300]
+      "webhookId": "223a6c66-4bda-4856-b3b2-d70ef58810c2",
+      "credentials": {
+        "telegramApi": {
+          "id": "Em6RYH9JmOHxJJeW",
+          "name": "Telegram account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "functionCode": "const text = $json.message.text;\nif (!text || !text.trim()) return [];\n\n// هر خط = یک شرکت\nconst companies = text.trim().split('\\n').map(line => line.trim()).filter(Boolean);\n\nreturn companies.map(company => ({\n  json: { company_name: company }\n}));\n"
+        "jsCode": "const message = $input.all()[0].json.message;\n\nif (!message?.text) return [];\n\nreturn message.text.trim()\n  .split('\\n')\n  .map(line => line.trim())\n  .filter(line => line.length > 0)\n  .map(company => ({\n    json: { company_name: company },\n    pairedItem: { item: 0 } \n  }));"
       },
-      "name": "Parse Text to Companies",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [460, 300]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -832
+      ],
+      "id": "2a2e7fd6-777d-4c01-b719-0e41224193ec",
+      "name": "Parse Companies"
     },
     {
       "parameters": {
-        "batchSize": 1
+        "options": {
+          "reset": false
+        }
       },
-      "name": "Loop Over Companies",
       "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 1,
-      "position": [680, 300]
+      "typeVersion": 3,
+      "position": [
+        656,
+        -832
+      ],
+      "id": "32e14326-9c5b-4f7e-9549-e943b3346f01",
+      "name": "Loop Over Items"
     },
     {
       "parameters": {
-        "command": "python /files/scripts/lseg_scraper.py \"{{$json.company_name}}\""
+        "jsCode": "return [{\n  json: {\n    company_name: $input.first().json.company_name.replace(/\"/g, '').trim()\n  }\n}];"
       },
-      "name": "Run LSEG Scraper",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [900, 300]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -1024
+      ],
+      "id": "139931da-9c22-44dc-9c0d-e8e5abe3f7f3",
+      "name": "Clean Name"
     },
     {
       "parameters": {
-        "functionCode": "try {\n  return [{ json: { ...JSON.parse(items[0].json.stdout), raw: items[0].json } }];\n} catch {\n  return [{ json: { company: $json.company_name, found: false } }];\n}"
+        "method": "POST",
+        "url": "http://python-api:8000/scrape",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"company\": \"{{$json.company_name}}\"\n}",
+        "options": {}
       },
-      "name": "Parse Scraper Output",
-      "type": "n8n-nodes-base.function",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        -1024
+      ],
+      "id": "7841712a-6cb1-4713-99ab-29ff72364c71",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json; // Get current item data\n\n// If company not found in LSEG\nif (!data.found) {\n  return [{\n    json: {\n      company: data.company || \"Unknown\",\n      message: `Company \"${data.company || \"Unknown\"}\" not found in LSEG database or ESG data is not available.`,\n      found: false\n    }\n  }];\n}\n\n// If found – prepare clean data and nice message\nconst company = data.company || $input.first().json.company_name;\nconst esg = data.esg_score;\nconst year = data.year;\nconst e = data.E && data.E !== \"N/A\" ? data.E : \"-\";\nconst s = data.S && data.S !== \"N/A\" ? data.S : \"-\";\nconst g = data.G && data.G !== \"N/A\" ? data.G : \"-\";\nconst pdf_url = data.pdf_url || null;\n\nreturn [{\n  json: {\n    company: company,\n    esg_score: esg,\n    E: e,\n    S: s,\n    G: g,\n    year: year,\n    found: true,\n    pdf_url: pdf_url,\n    pdf_found: !!pdf_url,\n    telegram_message: `\n*${company}*\n\n*LSEG ESG Score (Refinitiv)*\nOverall Score: *${esg}/100*\nBased on FY ${year} data\n\nEnvironmental (E): *${e}/100*\nSocial (S): *${s}/100*\nGovernance (G): *${g}/100*\n\nData source: LSEG (Refinitiv) ESG Scores\nUpdated: November 2025\n\nThis message was sent automatically with n8n\n    `.trim()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        -1024
+      ],
+      "id": "94a9f9d7-8eba-44f7-a154-dddee1cb877b",
+      "name": "Parse Result"
+    },
+    {
+      "parameters": {
+        "chatId": "109096484",
+        "text": "={{ $json.final_message }}",
+        "additionalFields": {
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3344,
+        -960
+      ],
+      "id": "2155609f-8c90-4e8a-83ba-0af43860eee6",
+      "name": "Send a text message",
+      "webhookId": "57bf53b2-f8e3-4662-8e05-a208d2533638",
+      "credentials": {
+        "telegramApi": {
+          "id": "Em6RYH9JmOHxJJeW",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fbcb6e34-2ccb-4f3d-9acd-2ee8e27b2a0a",
+              "name": "final_message",
+              "value": "=={{ \n  $('Parse Result').item.json.telegram_message + \n  \"\\n\\nESG Sustainability Report PDF:\\n\" + \n  ($json.pdf_url === \"NotFound\" ? \"Not available\" : $('HTTP Request1').item.json.items[0].link || \"Not available\")\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3120,
+        -1024
+      ],
+      "id": "3e295a8e-7f22-4299-909f-c76e2897ba7f",
+      "name": "Build Final Message"
+    },
+    {
+      "parameters": {
+        "messages": {
+          "message": [
+            {
+              "content": "=Your only job: return ONE direct PDF link to the latest official Sustainability/ESG/Integrated Report (2023–2025).\n\nCompany exact name: Delta Air Lines\nLSEG data year (search this year first): 2023\n\nSTRICT SEARCH ORDER – follow exactly:\n1. First search the company's official website for {{ $json.year }} report\n2. If not found → search {{ $json.year - 1 }}\n3. If still not found → go to https://www.sustainability-reports.com and find the latest report for this company (they have almost every company)\n4. Must be a direct, working PDF link (no 404, no login, no HTML page)\n5. If absolutely no PDF exists in 2023–2025 → return ONLY the word \"NotFound\"\n6. Return ONLY the URL or \"NotFound\" – no quotes, no text, no markdown, no explanation\n\nExamples:\nhttps://www.apple.com/environment/pdf/Apple_Environmental_Progress_Report_2024.pdf\nhttps://www.sustainability-reports.com/reports/nestle-2023-sustainability-report.pdf\nNotFound"
+            }
+          ]
+        },
+        "options": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.perplexity",
       "typeVersion": 1,
-      "position": [1120, 300]
+      "position": [
+        208,
+        -608
+      ],
+      "id": "a39fe8b1-d56b-48d3-be90-8c18a9846018",
+      "name": "Message a model"
+    },
+    {
+      "parameters": {
+        "url": "https://r.jina.ai/https://www.google.com/search?q={{$json.company | urlEncode}}+sustainability+report+{{$json.year}}+filetype:pdf&hl=en&num=10",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        -1248
+      ],
+      "id": "448588a7-4c5a-480c-b28c-3fcbe959478c",
+      "name": "Find ESG Report PDF with Jina"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.data;\n\n// استخراج همه لینک‌های PDF\nconst pdfRegex = /https?:\\/\\/[^\\s\\]]+\\.pdf/gi;\nconst matches = text.match(pdfRegex) || [];\n\n// فیلتر لینک‌های مرتبط\nconst filtered = matches.filter(url => \n  url.toLowerCase().includes('report') || \n  url.toLowerCase().includes('sustainab') || \n  url.toLowerCase().includes('esg') || \n  url.toLowerCase().includes('impact')\n);\n\n// اولین لینک معتبر رو برگردون\nif (filtered.length > 0) {\n  return [{ json: { pdf_url: filtered[0] } }];\n} else {\n  return [{ json: { pdf_url: \"NotFound\" } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -1248
+      ],
+      "id": "b063422a-0605-4017-b0b1-01ec3d1b10c5",
+      "name": "Extract PDF Link from Jina"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/customsearch/v1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Parse Result').item.json.company }} sustainability report {{ $('Parse Result').item.json.year }} filetype:pdf"
+            },
+            {
+              "name": "cx",
+              "value": "=038f8d8ce8a474b22"
+            },
+            {
+              "name": "key",
+              "value": "=AIzaSyBiWaNVhvLQQgNW88i03pw_3jVKD7qI0gI"
+            },
+            {
+              "name": "num",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2448,
+        -1024
+      ],
+      "id": "d757cdc4-b787-47cd-a444-baabdab27eb5",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== بخش 1: خواندن داده‌ها =====\n// داده‌های اصلی از Parse Result\nconst company = $('Parse Result').first().json.company;\nconst esg_score = $('Parse Result').first().json.esg_score;\nconst E = $('Parse Result').first().json.E;\nconst S = $('Parse Result').first().json.S;\nconst G = $('Parse Result').first().json.G;\nconst year = $('Parse Result').first().json.year;\n\n// آدرس PDF از نود قبلی\nconst pdf_url = $('HTTP Request1').first().json.items[0].link || \"Not available\";\n\n// ===== بخش 2: ساخت خط CSV =====\n// ساخت خط CSV با 7 ستون (همانطور که گفتید)\nconst csvLine = `\"${company.replace(/\"/g, '\"\"')}\",${esg_score},${E},${S},${G},${year},\"${pdf_url.replace(/\"/g, '\"\"')}\"`;\n\n// ===== بخش 3: دستور کامل برای ذخیره =====\nconst csvFile = '/home/node/.n8n/data/esg_dataset.csv';\n\n// دستور bash برای:\n// 1. ایجاد پوشه\n// 2. ایجاد فایل با هدر اگر وجود ندارد\n// 3. چک تکراری با grep\n// 4. اضافه کردن خط جدید اگر تکراری نیست\nconst bashCommand = `\n#!/bin/bash\nCSV_FILE=\"${csvFile}\"\n\n# 1. ایجاد پوشه اگر وجود ندارد\nmkdir -p /home/node/.n8n/data\n\n# 2. اگر فایل وجود ندارد، هدرها را بنویس\nif [ ! -f \"$CSV_FILE\" ]; then\n    echo \"Company,ESG_Score,E_Score,S_Score,G_Score,Year,PDF_URL\" > \"$CSV_FILE\"\n    echo \"File created with headers\"\nfi\n\n# 3. فرار کردن کوتیشن‌ها برای grep\nCOMPANY_ESCAPED=$(echo \"${company}\" | sed 's/\"/\"\"/g' | sed 's/\\[/\\\\[/g' | sed 's/\\]/\\\\]/g')\n\n# 4. چک تکراری - آیا شرکت قبلاً وجود دارد؟\nif grep -q \"^\\\"$COMPANY_ESCAPED\\\",\" \"$CSV_FILE\" 2>/dev/null; then\n    echo \"DUPLICATE\"\n    echo \"Company '${company}' already exists in CSV\"\n    exit 0\nelse\n    # 5. اضافه کردن خط جدید\n    echo \"${csvLine}\" >> \"$CSV_FILE\"\n    echo \"ADDED\"\n    echo \"Successfully added: ${company}\"\n    exit 0\nfi\n`;\n\n// ===== بخش 4: خروجی =====\nreturn [{\n    json: {\n        // 7 فیلد اصلی برای CSV\n        company: company,\n        esg_score: esg_score,\n        E: E,\n        S: S,\n        G: G,\n        year: year,\n        pdf_url: pdf_url,\n        \n        // اطلاعات اضافی برای workflow\n        csv_line: csvLine,\n        csv_file: csvFile,\n        bash_command: bashCommand,\n        operation: \"ready_to_append\",\n        \n        // زمان برای ردیابی\n        timestamp: new Date().toISOString()\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        -1024
+      ],
+      "id": "ae950bfc-0e29-496c-998f-9e0f3b892f4f",
+      "name": "csv file"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst company = inputData.company;\n\n// 1. Escape کردن company برای bash در JavaScript\nconst escapedCompany = company\n    .replace(/\\\\/g, '\\\\\\\\')     // \\ -> \\\\\n    .replace(/\"/g, '\\\\\"')       // \" -> \\\"\n    .replace(/\\$/g, '\\\\$')      // $ -> \\$\n    .replace(/`/g, '\\\\`');      // ` -> \\`\n\n// 2. دستور ساده و مطمئن\nconst checkCommand = `\nFILE=\"/data/esg_dataset.csv\"\nif [ ! -f \"\\$FILE\" ]; then\n  echo \"CSV_NOT_FOUND\"\nelif grep -i \"^\\\\\"${escapedCompany}\\\\\",\" \"\\$FILE\" > /dev/null 2>&1; then\n  echo \"DUPLICATE\"\nelse\n  echo \"NEW\"\nfi\n`;\n\n// 3. یا حتی ساده‌تر - بدون quote پیچیده\nconst simpleCheckCommand = `\nFILE=\"/data/esg_dataset.csv\"\n[ ! -f \"\\$FILE\" ] && echo \"CSV_NOT_FOUND\" && exit 0\ngrep -i \"${company}\" \"\\$FILE\" > /dev/null && echo \"DUPLICATE\" || echo \"NEW\"\n`;\n\nreturn [{\n    json: {\n        ...inputData,\n        check_command: simpleCheckCommand.trim(),\n        escaped_company: escapedCompany,\n        original_company: company\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        -1024
+      ],
+      "id": "acebb70f-2e0f-48b4-a240-be66e30a33b6",
+      "name": "Check Duplicate in CSV"
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.found }}",
-              "operation": "equal",
-              "value2": true
+              "id": "d853764e-e1b5-434e-8f98-cade190d5052",
+              "leftValue": "={{ $json.stdout }}",
+              "rightValue": "DUPLICATE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "name": "Found in LSEG?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1340, 300]
+      "typeVersion": 2.2,
+      "position": [
+        2224,
+        -1024
+      ],
+      "id": "e37d4d8e-a3d1-4b66-8d93-0caf17f269a2",
+      "name": "If"
     },
     {
       "parameters": {
-        "command": "python /files/scripts/download_pdf.py \"{{$json.company}}\" \"{{$json.year}}\""
+        "command": "=echo \"{{ $json.csv_line }}\" >> /data/esg_dataset.csv"
       },
-      "name": "Download ESG PDF",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1560, 220]
+      "position": [
+        2896,
+        -1024
+      ],
+      "id": "1a44c00f-f1de-43f8-bd32-26c2ee9ed7af",
+      "name": "Add to CSV File"
     },
     {
       "parameters": {
-        "chatId": "={{ $json[\"message\"][\"chat\"][\"id\"] }}",
-        "document": "={{ $json.stdout.trim() }}",
-        "caption": "ESG Report for *{{$json.company}}* ({{ $json.year }})",
-        "parseMode": "Markdown"
+        "command": "={{ $json.check_command }}"
       },
-      "name": "Send PDF to Telegram",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1780, 220]
-    },
-    {
-      "parameters": {
-        "command": "python /files/scripts/pdf_to_md.py \"{{$json.stdout.trim()}}\""
-      },
-      "name": "Convert PDF → MD",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [2000, 220]
+      "position": [
+        2000,
+        -1024
+      ],
+      "id": "b03bbb45-0695-46ee-9403-69e539fdc3cc",
+      "name": "Execute Command"
     },
     {
       "parameters": {
-        "command": "python /files/scripts/extract_gri.py \"{{$json.stdout.trim()}}\" \"{{$json.company}}\""
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "39583225-c2ff-470a-b1f9-f2d79145e0c4",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "name": "Extract GRI with Gemini",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [2220, 220]
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json[\"message\"][\"chat\"][\"id\"] }}",
-        "document": "={{ $json.stdout.trim() }}",
-        "caption": "GRI Items for *{{$json.company}}*",
-        "parseMode": "Markdown"
-      },
-      "name": "Send GRI CSV",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [2440, 220]
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json[\"message\"][\"chat\"][\"id\"] }}",
-        "text": "No ESG data found for *{{$json.company_name}}* on LSEG.",
-        "parseMode": "Markdown"
-      },
-      "name": "Not Found Message",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1560, 380]
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1552,
+        -1024
+      ],
+      "id": "2dbb2d86-6baa-4f55-86c9-7899cf210a97",
+      "name": "If1"
     }
   ],
+  "pinData": {},
   "connections": {
     "Telegram Trigger": {
       "main": [
         [
           {
-            "node": "Parse Text to Companies",
+            "node": "Parse Companies",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Text to Companies": {
+    "Parse Companies": {
       "main": [
         [
           {
-            "node": "Loop Over Companies",
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Loop Over Companies": {
+    "Loop Over Items": {
       "main": [
+        [],
         [
           {
-            "node": "Run LSEG Scraper",
+            "node": "Clean Name",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Run LSEG Scraper": {
+    "Clean Name": {
       "main": [
         [
           {
-            "node": "Parse Scraper Output",
+            "node": "HTTP Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Scraper Output": {
+    "HTTP Request": {
       "main": [
         [
           {
-            "node": "Found in LSEG?",
+            "node": "Parse Result",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Found in LSEG?": {
+    "Parse Result": {
       "main": [
         [
           {
-            "node": "Download ESG PDF",
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Message": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find ESG Report PDF with Jina": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Link from Jina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Link from Jina": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "csv file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "csv file": {
+      "main": [
+        [
+          {
+            "node": "Add to CSV File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate in CSV": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Not Found Message",
+            "node": "HTTP Request1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Download ESG PDF": {
+    "Add to CSV File": {
       "main": [
         [
           {
-            "node": "Send PDF to Telegram",
+            "node": "Build Final Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send PDF to Telegram": {
+    "Execute Command": {
       "main": [
         [
           {
-            "node": "Convert PDF → MD",
+            "node": "If",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Convert PDF → MD": {
+    "If1": {
       "main": [
         [
           {
-            "node": "Extract GRI with Gemini",
+            "node": "Check Duplicate in CSV",
             "type": "main",
             "index": 0
           }
-        ]
-      ]
-    },
-    "Extract GRI with Gemini": {
-      "main": [
+        ],
         [
           {
-            "node": "Send GRI CSV",
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
@@ -248,6 +547,14 @@
     }
   },
   "active": false,
-  "settings": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "869b8089-f8d3-4a6f-a91a-e8e200705129",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0b9f69b435950afe8ed0be8885c04b9c802c1d9e71f7fd7a8069a5ea7451b69f"
+  },
+  "id": "9Ga3nbbwtCYKuPgF",
   "tags": []
 }

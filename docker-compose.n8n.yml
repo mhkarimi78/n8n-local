@@ -19,8 +19,7 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./local_files:/files
-      - ./outputs:/data          # ← این خط رو اضافه کن
-      - ./outputs:/data:rw
+      - ./data:/data
     dns:
       - 8.8.8.8
       - 8.8.4.4

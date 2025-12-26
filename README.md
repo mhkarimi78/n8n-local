@@ -1,4 +1,4 @@
-# n8n Local AI Workflow – Automated ESG Data Scraping & Dataset Builder
+<img width="1599" height="290" alt="Screenshot 2025-12-26 at 2 25 27 PM" src="https://github.com/user-attachments/assets/d8e1ac21-62be-4b75-9a49-8bcd3852e897" /># n8n Local AI Workflow – Automated ESG Data Scraping & Dataset Builder
 
 [![n8n](https://img.shields.io/badge/n8n-v1.x-41A2E6?style=flat&logo=n8n&logoColor=white)](https://n8n.io)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
@@ -18,8 +18,11 @@ This project is a **fully automated data pipeline** built with **n8n** (self-hos
 
 The entire process runs **headlessly and unattended**, making it perfect for periodic data collection or integration into larger AI/ML pipelines.
 
-![Workflow Preview](<img width="1599" height="290" alt="Screenshot 2025-12-26 at 2 25 27 PM" src="https://github.com/user-attachments/assets/3a0c292e-cfba-4fa4-81bd-3838216e88ee" />
-)
+![Workflow Preview]()
+
+<img width="1599" height="290" alt="Screenshot 2025-12-26 at 2 25 27 PM" src="https://github.com/user-attachments/assets/09bfd0c6-c73e-42fc-b523-531179293d5f" />
+
+
 <!-- Replace with your actual screenshot of the n8n workflow or output -->
 
 ## Key Features
